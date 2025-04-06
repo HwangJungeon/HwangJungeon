@@ -1,0 +1,154 @@
+name: Update GitHub Stats
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 매일 UTC 00:00에 실행 (자정)
+  workflow_dispatch:      # 수동으로도 실행 가능하게 설정
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          
+      - name: Install dependencies
+        run: npm install axios cheerio
+
+      - name: Update README with GitHub Stats
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          cat > update-stats.js << 'EOF'
+          const fs = require('fs');
+          const axios = require('axios');
+          
+          async function updateReadme() {
+            try {
+              // GitHub GraphQL API를 사용하여 private 저장소 포함 통계 가져오기
+              const result = await axios({
+                url: 'https://api.github.com/graphql',
+                method: 'post',
+                headers: {
+                  Authorization: `Bearer ${process.env.GH_TOKEN}`
+                },
+                data: {
+                  query: `
+                  {
+                    user(login: "hwangjungeon") {
+                      repositories(first: 100, privacy: ALL, ownerAffiliations: [OWNER, ORGANIZATION_MEMBER]) {
+                        nodes {
+                          name
+                          languages(first: 10, orderBy: {field: SIZE, direction: DESC}) {
+                            edges {
+                              size
+                              node {
+                                name
+                                color
+                              }
+                            }
+                          }
+                          isPrivate
+                        }
+                      }
+                    }
+                  }
+                  `
+                }
+              });
+              
+              // 언어 통계 계산
+              const stats = {};
+              const repos = result.data.data.user.repositories.nodes;
+              
+              repos.forEach(repo => {
+                if (repo.languages && repo.languages.edges) {
+                  repo.languages.edges.forEach(edge => {
+                    const lang = edge.node.name;
+                    if (!stats[lang]) stats[lang] = 0;
+                    stats[lang] += edge.size;
+                  });
+                }
+              });
+              
+              // 총 바이트 계산
+              const totalBytes = Object.values(stats).reduce((sum, bytes) => sum + bytes, 0);
+              
+              // 백분율로 변환하고 정렬
+              const languages = Object.entries(stats)
+                .map(([name, bytes]) => ({ 
+                  name, 
+                  percentage: Math.round((bytes / totalBytes) * 1000) / 10 
+                }))
+                .sort((a, b) => b.percentage - a.percentage)
+                .slice(0, 10); // 상위 10개만
+              
+              // 마크다운 통계 생성
+              let statsMarkdown = `
+  <div>
+    <h4>Private & Public Repositories Language Stats:</h4>
+    <table>
+      <tr>
+        <th>Language</th>
+        <th>Percentage</th>
+      </tr>`;
+              
+              languages.forEach(lang => {
+                statsMarkdown += `
+      <tr>
+        <td>${lang.name}</td>
+        <td>${lang.percentage}%</td>
+      </tr>`;
+              });
+              
+              statsMarkdown += `
+    </table>
+    <p><em>Updated on ${new Date().toISOString().split('T')[0]} via GitHub Actions</em></p>
+  </div>`;
+              
+              const readme = fs.readFileSync('README.md', 'utf8');
+              
+              // README에서 통계 섹션 찾아 업데이트
+              const startComment = '<!-- START_SECTION:github-stats -->';
+              const endComment = '<!-- END_SECTION:github-stats -->';
+              
+              const startIndex = readme.indexOf(startComment);
+              const endIndex = readme.indexOf(endComment);
+              
+              if (startIndex !== -1 && endIndex !== -1) {
+                const newReadme = 
+                  readme.substring(0, startIndex + startComment.length) + 
+                  statsMarkdown + 
+                  readme.substring(endIndex);
+                  
+                fs.writeFileSync('README.md', newReadme);
+                console.log('README updated successfully');
+              } else {
+                console.error('Could not find GitHub stats section markers in README');
+                process.exit(1);
+              }
+            } catch (error) {
+              console.error('Error updating README:', error);
+              process.exit(1);
+            }
+          }
+          
+          updateReadme();
+          EOF
+          
+          node update-stats.js
+          
+      - name: Commit and Push
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add README.md
+          git commit -m "Update GitHub Stats" || echo "No changes to commit"
+          git push 
