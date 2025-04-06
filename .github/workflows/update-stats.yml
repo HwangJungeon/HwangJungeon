@@ -3,7 +3,7 @@ name: Update GitHub Stats
 on:
   schedule:
     - cron: '0 0 * * *'  # 매일 UTC 00:00에 실행 (자정)
-  workflow_dispatch:      # 수동으로도 실행 가능하게 설정
+  workflow_dispatch:
 
 jobs:
   update-readme:
