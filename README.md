@@ -79,7 +79,7 @@
   <h3>All Repositories (Including Private)</h3>
   
   <!-- START_SECTION:github-stats -->
-  <img src="https://github-readme-stats-one-bice.vercel.app/api/top-langs/?username=hwangjungeon&langs_count=10&count_private=true&layout=compact&theme=radical&role=OWNER,ORGANIZATION_MEMBER&hide_border=true" alt="Top Languages - Including Private" />
+
   <!-- END_SECTION:github-stats -->
 
   <h3>Public Repositories</h3>
