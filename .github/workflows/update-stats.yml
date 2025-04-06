@@ -91,27 +91,13 @@ jobs:
                 .slice(0, 10); // 상위 10개만
               
               // 마크다운 통계 생성
-              let statsMarkdown = `
-  <div>
-    <h4>Private & Public Repositories Language Stats:</h4>
-    <table>
-      <tr>
-        <th>Language</th>
-        <th>Percentage</th>
-      </tr>`;
+              let statsMarkdown = '<div>\n    <h4>Private & Public Repositories Language Stats:</h4>\n    <table>\n      <tr>\n        <th>Language</th>\n        <th>Percentage</th>\n      </tr>';
               
               languages.forEach(lang => {
-                statsMarkdown += `
-      <tr>
-        <td>${lang.name}</td>
-        <td>${lang.percentage}%</td>
-      </tr>`;
+                statsMarkdown += '\n      <tr>\n        <td>' + lang.name + '</td>\n        <td>' + lang.percentage + '%</td>\n      </tr>';
               });
               
-              statsMarkdown += `
-    </table>
-    <p><em>Updated on ${new Date().toISOString().split('T')[0]} via GitHub Actions</em></p>
-  </div>`;
+              statsMarkdown += '\n    </table>\n    <p><em>Updated on ' + new Date().toISOString().split('T')[0] + ' via GitHub Actions</em></p>\n  </div>';
               
               const readme = fs.readFileSync('README.md', 'utf8');
               
